@@ -77,9 +77,4 @@ internal class BKCBCentralManagerDelegateProxy: NSObject, CBCentralManagerDelega
     internal func centralManager(_ central: CBCentralManager, didDisconnectPeripheral peripheral: CBPeripheral, error: Error?) {
         connectionDelegate?.centralManager(central, didDisconnectPeripheral: peripheral, error: error)
     }
-
-
-
-
-
 }

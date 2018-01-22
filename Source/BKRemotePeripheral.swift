@@ -106,7 +106,8 @@ public class BKRemotePeripheral: BKRemotePeer, BKCBPeripheralDelegate {
         #endif
     }
 
-    internal var characteristicData: CBCharacteristic?
+    internal var characteristicsData: [BKCharacteristic] = []
+
     internal var peripheral: CBPeripheral?
 
     private var peripheralDelegateProxy: BKCBPeripheralDelegateProxy!
@@ -117,6 +118,12 @@ public class BKRemotePeripheral: BKRemotePeer, BKCBPeripheralDelegate {
         super.init(identifier: identifier)
         self.peripheralDelegateProxy = BKCBPeripheralDelegateProxy(delegate: self)
         self.peripheral = peripheral
+    }
+
+    // MARK: Public Functions
+    public func readCharacteristic(from service: CBUUID) {
+      guard let characteristicData = characteristicsData.filter({ $0.serviceUUID == service && $0.isReadable}).first else { return }
+      peripheral?.readValue(for: characteristicData.characteristic)
     }
 
     // MARK: Internal Functions
@@ -130,6 +137,7 @@ public class BKRemotePeripheral: BKRemotePeer, BKCBPeripheralDelegate {
             peripheral(peripheral!, didDiscoverServices: nil)
             return
         }
+
         peripheral?.discoverServices(configuration!.serviceUUIDs)
     }
 
@@ -167,20 +175,31 @@ public class BKRemotePeripheral: BKRemotePeer, BKCBPeripheralDelegate {
     }
 
     internal func peripheral(_ peripheral: CBPeripheral, didDiscoverCharacteristicsFor service: CBService, error: Error?) {
-        guard service.uuid == configuration!.dataServiceUUID, let dataCharacteristic = service.characteristics?.filter({ $0.uuid == configuration!.dataServiceCharacteristicUUID }).last else {
-            return
+        guard let bkService = configuration!.services.filter( { $0.dataServiceUUID == service.uuid }).first else { return }
+
+        if let dataCharacteristic = service.characteristics?.filter({ $0.uuid == bkService.writeDataServiceCharacteristicUUID }).last {
+          characteristicsData.append(BKCharacteristic(serviceUUID: bkService.dataServiceUUID, characteristic: dataCharacteristic, isReadable: false))
         }
-        characteristicData = dataCharacteristic
-        peripheral.setNotifyValue(true, for: dataCharacteristic)
+
+        if let dataCharacteristic = service.characteristics?.filter({ $0.uuid == bkService.readDataServiceCharacteristicUUID }).last {
+          characteristicsData.append(BKCharacteristic(serviceUUID: bkService.dataServiceUUID, characteristic: dataCharacteristic, isReadable: true))
+          peripheral.setNotifyValue(true, for: dataCharacteristic)
+        }
+
         peripheralDelegate?.remotePeripheralIsReady(self)
     }
 
     internal func peripheral(_ peripheral: CBPeripheral, didUpdateValueFor characteristic: CBCharacteristic, error: Error?) {
-        guard characteristic.uuid == configuration!.dataServiceCharacteristicUUID else {
-            return
-        }
-        handleReceivedData(characteristic.value!)
+        guard let value = characteristic.value else { return }
+        handleReceivedData(value, from: characteristic.uuid)
     }
 
 
+  internal func peripheral(_ peripheral: CBPeripheral, didUpdateNotificationStateFor characteristic: CBCharacteristic, error: Error?) {
+      if let bkCharacteristic = characteristicsData.filter({ $0.characteristic.uuid == characteristic.uuid }).first {
+        bkCharacteristic.characteristic = characteristic
+      }
+
+      peripheralDelegate?.remotePeripheralIsReady(self)
+  }
 }

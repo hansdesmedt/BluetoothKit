@@ -128,7 +128,7 @@ internal class BKConnectionPool: BKCBCentralManagerConnectionDelegate {
         connectionAttempt.completionHandler(connectionAttempt.remotePeripheral, error)
     }
 
-    private func succeedConnectionAttempt(_ connectionAttempt: BKConnectionAttempt) {
+    private func succeedConnectionAttempt(_ connectionAttempt: BKConnectionAttempt) { //TODO instead of calling discoverServices here do it on pair successful
         connectionAttempt.timer.invalidate()
         connectionAttempts.remove(at: connectionAttempts.index(of: connectionAttempt)!)
         connectedRemotePeripherals.append(connectionAttempt.remotePeripheral)

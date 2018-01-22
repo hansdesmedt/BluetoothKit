@@ -32,28 +32,26 @@ public class BKConfiguration {
 
     // MARK: Properties
 
-    /// The UUID for the service used to send data. This should be unique to your applications.
-    public let dataServiceUUID: CBUUID
+    public var services: [BKService] = []
 
-    /// The UUID for the characteristic used to send data. This should be unique to your application.
-    public var dataServiceCharacteristicUUID: CBUUID
-
-    /// Data used to indicate that no more data is coming when communicating.
+    /// Data used to indicate if needed that no more data is coming when communicating.
     public var endOfDataMark: Data
 
     /// Data used to indicate that a transfer was cancellen when communicating.
     public var dataCancelledMark: Data
 
     internal var serviceUUIDs: [CBUUID] {
-        let serviceUUIDs = [ dataServiceUUID ]
+        let serviceUUIDs = services.map { $0.dataServiceUUID }
         return serviceUUIDs
     }
 
+    internal var advertisedServicesUUIDs: [CBUUID]
+
     // MARK: Initialization
 
-    public init(dataServiceUUID: UUID, dataServiceCharacteristicUUID: UUID) {
-        self.dataServiceUUID = CBUUID(nsuuid: dataServiceUUID)
-        self.dataServiceCharacteristicUUID = CBUUID(nsuuid: dataServiceCharacteristicUUID)
+    public init(services: [BKService], advertisedServicesUUIDs: [CBUUID]) {
+        self.advertisedServicesUUIDs = advertisedServicesUUIDs
+        self.services = services
         endOfDataMark = "EOD".data(using: String.Encoding.utf8)!
         dataCancelledMark = "COD".data(using: String.Encoding.utf8)!
     }
@@ -61,8 +59,8 @@ public class BKConfiguration {
     // MARK Functions
 
     internal func characteristicUUIDsForServiceUUID(_ serviceUUID: CBUUID) -> [CBUUID] {
-        if serviceUUID == dataServiceUUID {
-            return [ dataServiceCharacteristicUUID ]
+        if let service = services.filter({ $0.dataServiceUUID == serviceUUID }).first {
+          return [service.readDataServiceCharacteristicUUID, service.writeDataServiceCharacteristicUUID]
         }
         return []
     }
